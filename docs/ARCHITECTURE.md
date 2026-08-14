@@ -47,9 +47,15 @@ untouched and blocks volume adjustment for that daemon lifetime.
 
 An index is remapped and durably journaled only when a non-empty selector/restore-ID pair identifies
 exactly one journal entry and one current stream globally. Ambiguous streams are neither restored nor
-captured as new originals. Missing, ambiguous, and failed restores remain pending for a later
-snapshot or reconnect, but do not delay a completed request or shutdown when no current stream can
-be resolved.
+captured as new originals. An ambiguous target is skipped instead of failing its request: the rest of
+the snapshot keeps converging, and the conflict is published as a notice in `LastError` while `State`
+stays unchanged. Missing and failed restores remain pending for a later snapshot or reconnect, but do
+not delay a completed request or shutdown when no current stream can be resolved.
+
+Every complete snapshot also retires entries that no live stream can ever resolve, neither by exact
+index nor through their identity group. Such a stream has ended and its original volume is gone with
+it, so keeping the entry would only leave a permanent pending restoration and a permanently ambiguous
+identity group. The removal is journaled first; a failed write keeps every entry.
 
 ## Daemon and D-Bus completion
 

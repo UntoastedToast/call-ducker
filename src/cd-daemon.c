@@ -278,6 +278,12 @@ controller_done (GObject *object, GAsyncResult *result, gpointer data)
           self->reconcile_pending = TRUE;
         }
     }
+  else if (!success && current && g_error_matches (error, G_IO_ERROR, G_IO_ERROR_BUSY))
+    {
+      /* A stream identity conflict leaves that group untouched. The audio
+       * service itself keeps working, so it is reported as a notice. */
+      cd_engine_set_notice (self->engine, error->message);
+    }
   else if (!success && current)
     {
       self->backend_ready = FALSE;
@@ -570,6 +576,7 @@ volume_changed (CdVolumeController *controller, const GError *error, gpointer da
   if (self->disposed)
     return;
   cd_engine_set_pending (self->engine, cd_volume_controller_get_pending (controller));
+  cd_engine_set_notice (self->engine, cd_volume_controller_get_notice (controller));
 }
 
 static void

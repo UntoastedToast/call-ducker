@@ -59,6 +59,7 @@ typedef struct
   GPtrArray *revived_entries;
   GArray *remaps;
   GError *error;
+  char *notice;
   gboolean rolling_back;
   gboolean superseded;
   gboolean task_returned;
@@ -77,11 +78,13 @@ struct _CdVolumeController
   CdVolumeControllerChanged changed;
   gpointer changed_data;
   GError *journal_error;
+  char *notice;
   guint64 generation;
   guint64 snapshot_epoch;
   gulong backend_changed_id;
   gboolean set_active;
   gboolean journal_blocked;
+  gboolean prune_pending;
   gboolean disposed;
 };
 
@@ -103,6 +106,7 @@ typedef struct
 
 static void process_current (CdVolumeController *self);
 static void start_next_request (CdVolumeController *self);
+static void prune_dead_entries (CdVolumeController *self);
 static gboolean stream_is_eligible (CdAudioStream *stream);
 static gboolean valid_stream_layout (CdAudioStream *stream);
 static gboolean remap_volume (RestoreEntry *entry, CdAudioStream *stream, pa_cvolume *volume,
@@ -187,6 +191,7 @@ request_free (ControllerRequest *request)
   g_ptr_array_unref (request->revived_entries);
   g_array_unref (request->remaps);
   g_clear_error (&request->error);
+  g_free (request->notice);
   g_object_unref (request->task);
   g_free (request);
 }
@@ -200,6 +205,7 @@ controller_unref (CdVolumeController *self)
   request_free (self->pending_restore);
   request_free (self->pending_reconcile);
   g_clear_error (&self->journal_error);
+  g_free (self->notice);
   g_hash_table_unref (self->tombstones);
   g_hash_table_unref (self->entries);
   cd_state_store_free (self->store);
@@ -246,6 +252,7 @@ backend_changed (CdAudioBackend *backend, gpointer data)
       if (matches == 1 && self->snapshot_epoch > entry->last_set_epoch)
         g_hash_table_iter_remove (&iterator);
     }
+  prune_dead_entries (self);
 }
 
 CdVolumeController *
@@ -870,6 +877,15 @@ request_set_literal_error (ControllerRequest *request, GQuark domain, gint code,
     request->error = g_error_new_literal (domain, code, message);
 }
 
+/* An identity conflict concerns one stream group, not the audio service. The
+ * group is left alone and the remaining targets keep converging. */
+static void
+request_set_notice (ControllerRequest *request, const char *message)
+{
+  if (request->notice == NULL)
+    request->notice = g_strdup (message);
+}
+
 static void
 queue_operation (ControllerRequest *request, RestoreEntry *entry, gboolean restore, gboolean force)
 {
@@ -939,9 +955,8 @@ prepare_reconcile (CdVolumeController *self, ControllerRequest *request)
 
       if (target_ambiguous)
         {
-          request_set_literal_error (request, G_IO_ERROR, G_IO_ERROR_BUSY,
-                                     "Audio stream identity is ambiguous");
-          break;
+          request_set_notice (request, "Audio stream identity is ambiguous");
+          continue;
         }
       if (stream == NULL)
         continue;
@@ -954,9 +969,8 @@ prepare_reconcile (CdVolumeController *self, ControllerRequest *request)
       entry = entry_for_stream (self, request, stream, &entry_ambiguous);
       if (entry_ambiguous)
         {
-          request_set_literal_error (request, G_IO_ERROR, G_IO_ERROR_BUSY,
-                                     "Restore identity is ambiguous");
-          break;
+          request_set_notice (request, "Restore identity is ambiguous");
+          continue;
         }
       if (entry == NULL)
         entry = capture_entry (self, request, stream);
@@ -1290,6 +1304,81 @@ notify_changed (CdVolumeController *self, const GError *error)
   controller_unref (self);
 }
 
+/* A stream that is absent from a complete snapshot has ended: its original
+ * volume died with it and can never be written back. Such an entry would stay
+ * pending forever and keeps poisoning its identity group, so drop it. */
+static gboolean
+entry_is_unreachable (CdVolumeController *self, RestoreEntry *entry)
+{
+  GPtrArray *streams = cd_audio_backend_get_streams (self->backend);
+  CdAudioStream *candidate = NULL;
+
+  for (guint index = 0; streams != NULL && index < streams->len; index++)
+    {
+      CdAudioStream *stream = g_ptr_array_index (streams, index);
+
+      if (stream_matches_identity_group (stream, entry->key.selector, entry->key.restore_id)
+          && stream->id == entry->key.pulse_index)
+        return FALSE;
+    }
+  if (*normalized_restore_id (entry->key.restore_id) == '\0')
+    return TRUE;
+  return count_stream_group (self, entry->key.selector, entry->key.restore_id, &candidate) == 0;
+}
+
+static void
+prune_dead_entries (CdVolumeController *self)
+{
+  g_autoptr (GPtrArray) removed = NULL;
+  g_autoptr (GError) error = NULL;
+  GHashTableIter iterator;
+  gpointer value;
+
+  if (self->disposed || self->journal_blocked)
+    return;
+  if (self->current != NULL || self->set_active)
+    {
+      /* Queued operations hold entry pointers. Retry once the request ends. */
+      self->prune_pending = TRUE;
+      return;
+    }
+  self->prune_pending = FALSE;
+  if (g_hash_table_size (self->entries) == 0)
+    return;
+
+  removed = g_ptr_array_new ();
+  g_hash_table_iter_init (&iterator, self->entries);
+  while (g_hash_table_iter_next (&iterator, NULL, &value))
+    {
+      RestoreEntry *entry = value;
+
+      if (entry_is_unreachable (self, entry))
+        g_ptr_array_add (removed, entry);
+    }
+  if (removed->len == 0)
+    return;
+  for (guint index = 0; index < removed->len; index++)
+    {
+      RestoreEntry *entry = g_ptr_array_index (removed, index);
+
+      g_assert_true (g_hash_table_steal (self->entries, &entry->key));
+    }
+  if (!save (self, &error))
+    {
+      /* The journal stays authoritative: a failed write keeps every entry. */
+      for (guint index = 0; index < removed->len; index++)
+        {
+          RestoreEntry *entry = g_ptr_array_index (removed, index);
+
+          g_hash_table_insert (self->entries, &entry->key, entry);
+        }
+      return;
+    }
+  for (guint index = 0; index < removed->len; index++)
+    restore_entry_free (g_ptr_array_index (removed, index));
+  notify_changed (self, NULL);
+}
+
 static void
 complete_current (CdVolumeController *self)
 {
@@ -1307,6 +1396,8 @@ complete_current (CdVolumeController *self)
       /* Detach before invoking user code: a changed callback may dispose the
        * controller, but this local request remains valid until we return. */
       self->current = NULL;
+      g_free (self->notice);
+      self->notice = g_strdup (request->notice);
       notify_changed (self, request->error);
       if (!request->task_returned)
         {
@@ -1396,6 +1487,10 @@ start_next_request (CdVolumeController *self)
 
   if (self->disposed || self->current != NULL || self->set_active)
     return;
+  if (self->prune_pending)
+    prune_dead_entries (self);
+  if (self->disposed)
+    return;
   if (self->pending_restore != NULL)
     {
       self->current = self->pending_restore;
@@ -1422,4 +1517,11 @@ cd_volume_controller_get_pending (CdVolumeController *self)
 {
   g_return_val_if_fail (self != NULL, 0);
   return g_hash_table_size (self->entries);
+}
+
+const char *
+cd_volume_controller_get_notice (CdVolumeController *self)
+{
+  g_return_val_if_fail (self != NULL, NULL);
+  return self->notice;
 }
