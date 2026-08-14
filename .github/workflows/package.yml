@@ -8,6 +8,12 @@ name: Package
 on:
   workflow_call:
 
+defaults:
+  run:
+    # Containers default to sh, which is dash on Debian and Ubuntu. Every inline
+    # step must get a real bash.
+    shell: bash
+
 permissions:
   contents: read
 
