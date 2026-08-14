@@ -14,8 +14,12 @@ public class CallDuckerWindow : Adw.ApplicationWindow {
     private ApplicationsView applications_view;
     private bool syncing_enabled;
     private bool syncing_volume;
+    private const uint MAX_RECONNECT_ATTEMPTS = 5;
+
     private bool preview_call_in_flight;
     private uint reconnect_source;
+    private uint reconnect_attempts;
+    private string? reconnect_message;
     private DBusProxy? daemon;
     private DaemonClient? daemon_client;
 
@@ -39,7 +43,11 @@ public class CallDuckerWindow : Adw.ApplicationWindow {
         main_page.preview_button.clicked.connect (() => toggle_preview.begin ());
         main_page.manage_row.activated.connect (() => navigation.push_by_tag ("applications"));
         settings.changed["background-volume"].connect (volume_setting_changed);
-        applications_view.changed.connect (refresh_preview);
+        applications_view.changed.connect (() => {
+            reconnect_attempts = 0;
+            reconnect_message = null;
+            refresh_preview ();
+        });
         applications_view.failed.connect ((error) => {
             if (is_transient_dbus_error (error)) handle_daemon_error (error);
             else show_error (friendly_error (error));
@@ -101,6 +109,7 @@ public class CallDuckerWindow : Adw.ApplicationWindow {
 
     private void handle_daemon_error (Error error) {
         if (settings.get_boolean ("enabled") && is_transient_dbus_error (error)) {
+            reconnect_message = error.message;
             set_connecting_status ();
             schedule_daemon_reconnect ();
         } else if (settings.get_boolean ("enabled")) {
@@ -116,6 +125,16 @@ public class CallDuckerWindow : Adw.ApplicationWindow {
 
     private void schedule_daemon_reconnect () {
         if (!settings.get_boolean ("enabled") || reconnect_source != 0) return;
+        /* A daemon that never answers is not restarting: it does not speak our
+           contract. Stop retrying silently and report it. */
+        if (reconnect_attempts >= MAX_RECONNECT_ATTEMPTS) {
+            set_status (_("Audio service unavailable"),
+                reconnect_message ?? _("Check the system journal for details"),
+                "dialog-warning-symbolic");
+            refresh_preview ();
+            return;
+        }
+        reconnect_attempts++;
         reconnect_source = Timeout.add (400, () => {
             reconnect_source = 0;
             connect_daemon.begin ();
@@ -244,6 +263,8 @@ public class CallDuckerWindow : Adw.ApplicationWindow {
     private void enabled_changed () {
         if (syncing_enabled) return;
         bool enable = main_page.enabled_row.active;
+        reconnect_attempts = 0;
+        reconnect_message = null;
         settings.set_boolean ("enabled", enable);
         settings.set_boolean ("onboarding-complete", true);
         main_page.ducking_group.sensitive = enable;

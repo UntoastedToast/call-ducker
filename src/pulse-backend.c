@@ -22,6 +22,7 @@ struct _CdPulseBackend
   GList *pending_sets;
   gboolean subscribed;
   gboolean snapshot_current;
+  gboolean started;
   gboolean disposed;
 };
 
@@ -756,8 +757,17 @@ cd_pulse_backend_init (CdPulseBackend *self)
 CdPulseBackend *
 cd_pulse_backend_new (void)
 {
-  CdPulseBackend *self = g_object_new (CD_TYPE_PULSE_BACKEND, NULL);
+  return g_object_new (CD_TYPE_PULSE_BACKEND, NULL);
+}
 
+/* Construction stays free of side effects so that a daemon which loses the
+ * bus name never touches PulseAudio. */
+void
+cd_pulse_backend_start (CdPulseBackend *self)
+{
+  g_return_if_fail (CD_IS_PULSE_BACKEND (self));
+  if (self->context != NULL || self->started)
+    return;
+  self->started = TRUE;
   connect_server (self);
-  return self;
 }

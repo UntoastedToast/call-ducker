@@ -155,7 +155,12 @@ cd_dbus_service_export (CdDbusService *self, GDBusConnection *connection, const 
 void
 cd_dbus_service_unexport (CdDbusService *self)
 {
-  g_dbus_interface_skeleton_unexport (G_DBUS_INTERFACE_SKELETON (self->skeleton));
+  GDBusInterfaceSkeleton *skeleton = G_DBUS_INTERFACE_SKELETON (self->skeleton);
+
+  /* Shutdown unexports early; freeing the service must not repeat it. */
+  if (g_dbus_interface_skeleton_get_connection (skeleton) == NULL)
+    return;
+  g_dbus_interface_skeleton_unexport (skeleton);
 }
 
 void

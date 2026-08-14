@@ -8,5 +8,6 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE (CdPulseBackend, cd_pulse_backend, CD, PULSE_BACKEND, GObject)
 
 CdPulseBackend *cd_pulse_backend_new (void);
+void cd_pulse_backend_start (CdPulseBackend *self);
 
 G_END_DECLS
