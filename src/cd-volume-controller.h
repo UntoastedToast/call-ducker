@@ -25,6 +25,7 @@ gboolean cd_volume_controller_restore_all_finish (CdVolumeController *self, GAsy
                                                   GError **error);
 
 guint cd_volume_controller_get_pending (CdVolumeController *self);
+const char *cd_volume_controller_get_notice (CdVolumeController *self);
 pa_cvolume cd_volume_absolute (const pa_cvolume *original, double target);
 
 G_END_DECLS

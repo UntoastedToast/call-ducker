@@ -15,18 +15,24 @@ public class StatusViewState : Object {
             return new StatusViewState (_("CallDucker is off"),
                 _("Turn on automatic volume adjustment to start listening"),
                 "media-playback-stop-symbolic");
+        /* A message while the service runs is a notice about a single stream
+           group, not an outage. It replaces the subtitle, never the title. */
+        bool notice = error != null && error != "";
         if (state == "Listening")
             return new StatusViewState (_("Listening for calls"),
-                _("No active call detected"), "audio-input-microphone-symbolic");
+                notice ? error : _("No active call detected"),
+                notice ? "dialog-information-symbolic" : "audio-input-microphone-symbolic");
         if (state == "Call active") {
             string[] details = {};
             if (trigger != null && trigger != "")
                 details += _("Call: %s").printf (trigger);
             if (ducked_count > 0)
                 details += _("Adjusted: %u application(s)").printf (ducked_count);
+            if (notice)
+                details += error;
             return new StatusViewState (_("Call active"), details.length == 0
                 ? _("Applying the target volume") : string.joinv (" · ", details),
-                "audio-volume-low-symbolic");
+                notice ? "dialog-information-symbolic" : "audio-volume-low-symbolic");
         }
         return new StatusViewState (_("Audio service unavailable"),
             error != null && error != "" ? error : _("Check the system journal for details"),

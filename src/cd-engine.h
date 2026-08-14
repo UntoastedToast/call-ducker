@@ -15,6 +15,7 @@ CdEngine *cd_engine_new (CdEngineChanged changed, gpointer data);
 void cd_engine_free (CdEngine *self);
 void cd_engine_set_enabled (CdEngine *self, gboolean enabled);
 void cd_engine_set_available (CdEngine *self, gboolean available, const char *error);
+void cd_engine_set_notice (CdEngine *self, const char *message);
 void cd_engine_set_trigger (CdEngine *self, const char *id, const char *name, gboolean active);
 void cd_engine_end_call (CdEngine *self);
 void cd_engine_set_ducked (CdEngine *self, const char *id, const char *name, gboolean ducked);

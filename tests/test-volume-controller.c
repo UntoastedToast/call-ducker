@@ -648,6 +648,126 @@ ambiguous_restore_ids_are_never_remapped (void)
 }
 
 static void
+ended_streams_leave_the_journal (void)
+{
+  g_autoptr (TestAudioBackend) backend = test_audio_backend_new ();
+  g_autofree char *directory = NULL;
+  g_autofree char *path = temporary_journal (&directory);
+  g_autofree char *journal = NULL;
+  g_autoptr (GError) error = NULL;
+  CdVolumeController *controller = new_controller (backend, path);
+  CdAudioStream *stream = add_stereo_stream (backend, 60, "application:game", "restore:ended",
+                                             PA_VOLUME_NORM, PA_VOLUME_NORM);
+  g_autoptr (GPtrArray) targets = g_ptr_array_new ();
+  AsyncResult result;
+
+  g_ptr_array_add (targets, stream);
+  start_reconcile (&result, controller, targets, 0.2);
+  assert_succeeded (&result);
+  async_result_clear (&result);
+  g_assert_cmpuint (cd_volume_controller_get_pending (controller), ==, 1);
+
+  /* The stream ends: no snapshot can ever resolve its original again. */
+  test_audio_backend_clear (backend);
+  test_audio_backend_changed (backend);
+  g_assert_cmpuint (cd_volume_controller_get_pending (controller), ==, 0);
+  g_assert_true (g_file_get_contents (path, &journal, NULL, &error));
+  g_assert_no_error (error);
+  g_assert_null (strstr (journal, "restore:ended"));
+
+  cd_volume_controller_free (controller);
+  remove_journal (path, directory);
+}
+
+static void
+pruning_releases_a_poisoned_identity_group (void)
+{
+  g_autoptr (TestAudioBackend) backend = test_audio_backend_new ();
+  g_autofree char *directory = NULL;
+  g_autofree char *path = temporary_journal (&directory);
+  CdVolumeController *controller = new_controller (backend, path);
+  CdAudioStream *first = add_stereo_stream (backend, 61, "binary:wine", "restore:shared",
+                                            PA_VOLUME_NORM, PA_VOLUME_NORM);
+  CdAudioStream *second = add_stereo_stream (backend, 62, "binary:wine", "restore:shared",
+                                             PA_VOLUME_NORM, PA_VOLUME_NORM);
+  g_autoptr (GPtrArray) targets = g_ptr_array_new ();
+  CdAudioStream *revived;
+  AsyncResult result;
+
+  g_ptr_array_add (targets, first);
+  g_ptr_array_add (targets, second);
+  start_reconcile (&result, controller, targets, 0.5);
+  assert_succeeded (&result);
+  async_result_clear (&result);
+  g_assert_cmpuint (cd_volume_controller_get_pending (controller), ==, 2);
+
+  /* Both members end together, so a later launch of the same application must
+   * not inherit their ambiguity. */
+  test_audio_backend_clear (backend);
+  test_audio_backend_changed (backend);
+  g_assert_cmpuint (cd_volume_controller_get_pending (controller), ==, 0);
+
+  revived = add_stereo_stream (backend, 63, "binary:wine", "restore:shared", PA_VOLUME_NORM,
+                               PA_VOLUME_NORM);
+  test_audio_backend_changed (backend);
+  g_ptr_array_set_size (targets, 0);
+  g_ptr_array_add (targets, revived);
+  start_reconcile (&result, controller, targets, 0.5);
+  assert_succeeded (&result);
+  async_result_clear (&result);
+  g_assert_null (cd_volume_controller_get_notice (controller));
+  g_assert_cmpuint (pa_cvolume_max (stored_volume (backend, 63)), ==, PA_VOLUME_NORM / 2);
+
+  cd_volume_controller_free (controller);
+  remove_journal (path, directory);
+}
+
+static void
+ambiguous_target_spares_the_other_targets (void)
+{
+  g_autoptr (TestAudioBackend) backend = test_audio_backend_new ();
+  g_autofree char *directory = NULL;
+  g_autofree char *path = temporary_journal (&directory);
+  CdVolumeController *controller = new_controller (backend, path);
+  CdAudioStream *first = add_stereo_stream (backend, 64, "binary:wine", "restore:shared",
+                                            PA_VOLUME_NORM, PA_VOLUME_NORM);
+  CdAudioStream *second = add_stereo_stream (backend, 65, "binary:wine", "restore:shared",
+                                             PA_VOLUME_NORM, PA_VOLUME_NORM);
+  g_autoptr (GPtrArray) targets = g_ptr_array_new ();
+  CdAudioStream *ambiguous;
+  CdAudioStream *unrelated;
+  AsyncResult result;
+
+  g_ptr_array_add (targets, first);
+  g_ptr_array_add (targets, second);
+  start_reconcile (&result, controller, targets, 0.5);
+  assert_succeeded (&result);
+  async_result_clear (&result);
+
+  /* One member of the pair returns without a snapshot in between, so its
+   * identity group stays ambiguous. */
+  test_audio_backend_clear (backend);
+  ambiguous = add_stereo_stream (backend, 66, "binary:wine", "restore:shared", PA_VOLUME_NORM,
+                                 PA_VOLUME_NORM);
+  unrelated = add_stereo_stream (backend, 67, "application:player", "restore:player",
+                                 PA_VOLUME_NORM, PA_VOLUME_NORM);
+  g_ptr_array_set_size (targets, 0);
+  g_ptr_array_add (targets, ambiguous);
+  g_ptr_array_add (targets, unrelated);
+  start_reconcile (&result, controller, targets, 0.5);
+  assert_succeeded (&result);
+  async_result_clear (&result);
+
+  g_assert_cmpstr (cd_volume_controller_get_notice (controller), ==,
+                   "Restore identity is ambiguous");
+  g_assert_cmpuint (pa_cvolume_max (stored_volume (backend, 67)), ==, PA_VOLUME_NORM / 2);
+  g_assert_cmpuint (pa_cvolume_max (stored_volume (backend, 66)), ==, PA_VOLUME_NORM);
+
+  cd_volume_controller_free (controller);
+  remove_journal (path, directory);
+}
+
+static void
 unwritable_identity_makes_remap_ambiguous (void)
 {
   g_autoptr (TestAudioBackend) backend = test_audio_backend_new ();
@@ -846,6 +966,9 @@ main (int argc, char **argv)
   g_test_add_func ("/volume/post-restore-mixer", post_restore_mixer_value_becomes_new_original);
   g_test_add_func ("/volume/unique-remap", unique_restore_id_remaps_and_persists_index);
   g_test_add_func ("/volume/ambiguous-remap", ambiguous_restore_ids_are_never_remapped);
+  g_test_add_func ("/volume/ended-streams-pruned", ended_streams_leave_the_journal);
+  g_test_add_func ("/volume/prune-releases-group", pruning_releases_a_poisoned_identity_group);
+  g_test_add_func ("/volume/ambiguous-target-skipped", ambiguous_target_spares_the_other_targets);
   g_test_add_func ("/volume/unwritable-remap-ambiguity", unwritable_identity_makes_remap_ambiguous);
   g_test_add_func ("/volume/channel-map-remap", channel_map_is_remapped_before_restore);
   g_test_add_func ("/volume/restart-raw-channels", restart_loads_raw_channels_and_restores);

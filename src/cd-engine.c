@@ -8,6 +8,7 @@ struct _CdEngine
   GHashTable *triggers;
   GHashTable *ducked;
   char *error;
+  char *notice;
   guint pending;
   CdEngineChanged changed;
   gpointer data;
@@ -39,6 +40,7 @@ cd_engine_free (CdEngine *self)
   g_hash_table_unref (self->triggers);
   g_hash_table_unref (self->ducked);
   g_free (self->error);
+  g_free (self->notice);
   g_free (self);
 }
 
@@ -66,6 +68,20 @@ cd_engine_set_available (CdEngine *self, gboolean available, const char *error)
   self->available = available;
   g_free (self->error);
   self->error = g_strdup (message);
+  notify (self);
+}
+
+/* A notice reports a condition that does not stop the audio service, such as
+ * a stream identity conflict that leaves one group untouched. */
+void
+cd_engine_set_notice (CdEngine *self, const char *message)
+{
+  const char *notice = message != NULL ? message : "";
+
+  if (g_strcmp0 (self->notice, notice) == 0)
+    return;
+  g_free (self->notice);
+  self->notice = g_strdup (notice);
   notify (self);
 }
 
@@ -209,7 +225,9 @@ cd_engine_dup_ducked_names (CdEngine *self)
 const char *
 cd_engine_get_error (CdEngine *self)
 {
-  return self->error != NULL ? self->error : "";
+  if (self->error != NULL && *self->error != '\0')
+    return self->error;
+  return self->notice != NULL ? self->notice : "";
 }
 
 guint

@@ -31,6 +31,32 @@ lifecycle (void)
   cd_engine_free (e);
 }
 static void
+notice_reports_without_an_outage (void)
+{
+  CdEngine *e = cd_engine_new (NULL, NULL);
+
+  cd_engine_set_enabled (e, TRUE);
+  cd_engine_set_available (e, TRUE, "");
+  cd_engine_set_notice (e, "Restore identity is ambiguous");
+  g_assert_cmpint (cd_engine_get_state (e), ==, CD_STATE_LISTENING);
+  g_assert_cmpstr (cd_engine_get_error (e), ==, "Restore identity is ambiguous");
+  cd_engine_set_trigger (e, "discord:1", "Discord", TRUE);
+  g_assert_true (cd_engine_should_duck (e));
+  cd_engine_set_trigger (e, "discord:1", "Discord", FALSE);
+
+  /* A real outage keeps precedence over a notice. */
+  cd_engine_set_available (e, FALSE, "gone");
+  g_assert_cmpint (cd_engine_get_state (e), ==, CD_STATE_UNAVAILABLE);
+  g_assert_cmpstr (cd_engine_get_error (e), ==, "gone");
+
+  cd_engine_set_available (e, TRUE, "");
+  g_assert_cmpstr (cd_engine_get_error (e), ==, "Restore identity is ambiguous");
+  cd_engine_set_notice (e, "");
+  g_assert_cmpstr (cd_engine_get_error (e), ==, "");
+  cd_engine_free (e);
+}
+
+static void
 disable_clears_call (void)
 {
   CdEngine *e = cd_engine_new (NULL, NULL);
@@ -84,6 +110,7 @@ main (int argc, char **argv)
 {
   g_test_init (&argc, &argv, NULL);
   g_test_add_func ("/engine/lifecycle", lifecycle);
+  g_test_add_func ("/engine/notice-without-outage", notice_reports_without_an_outage);
   g_test_add_func ("/engine/disable-clears-call", disable_clears_call);
   g_test_add_func ("/engine/targets", targets);
   g_test_add_func ("/engine/deterministic-and-coalesced", deterministic_and_coalesced);
