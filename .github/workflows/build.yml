@@ -61,8 +61,9 @@ jobs:
           meson compile -C build
           meson test -C build --print-errorlogs
 
+  # Job IDs are the names branch protection requires; do not rename without
+  # updating the required status checks on main.
   quality:
-    name: Quality gate
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: fedora:43
@@ -84,7 +85,6 @@ jobs:
         run: ./scripts/check-quality.sh build-quality
 
   sanitizers:
-    name: Sanitizers
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: fedora:43
