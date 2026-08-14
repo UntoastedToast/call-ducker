@@ -19,8 +19,8 @@ the [latest GitHub Release](https://github.com/UntoastedToast/call-ducker/releas
 | Distribution | Asset |
 | --- | --- |
 | <img src="https://cdn.simpleicons.org/fedora/51A2DA" height="14" align="top" alt=""> Fedora 43 and newer | `call-ducker-<version>-1.fc*.x86_64.rpm` |
-| <img src="https://cdn.simpleicons.org/debian/A81D33" height="14" align="top" alt=""> Debian 13 and newer | `call-ducker_<version>-1~deb13_amd64.deb` |
-| <img src="https://cdn.simpleicons.org/ubuntu/E95420" height="14" align="top" alt=""> <img src="https://cdn.simpleicons.org/linuxmint/87CF3E" height="14" align="top" alt=""> Ubuntu 24.04+ and Linux Mint 22+ | `call-ducker_<version>-1~ubuntu24.04_amd64.deb` |
+| <img src="https://cdn.simpleicons.org/debian/A81D33" height="14" align="top" alt=""> Debian 13 and newer | `call-ducker_<version>-1.deb13_amd64.deb` |
+| <img src="https://cdn.simpleicons.org/ubuntu/E95420" height="14" align="top" alt=""> <img src="https://cdn.simpleicons.org/linuxmint/87CF3E" height="14" align="top" alt=""> Ubuntu 24.04+ and Linux Mint 22+ | `call-ducker_<version>-1.ubuntu24.04_amd64.deb` |
 | <img src="https://cdn.simpleicons.org/archlinux/1793D1" height="14" align="top" alt=""> Arch Linux | `PKGBUILD` |
 
 **Only the Fedora package has been tested in real use so far.** Every package is built and passes
@@ -67,7 +67,7 @@ sudo dnf install ./call-ducker-*.x86_64.rpm
 </summary>
 
 ```sh
-sudo apt install ./call-ducker_*~deb13_amd64.deb
+sudo apt install ./call-ducker_*deb13_amd64.deb
 ```
 
 Use `apt install ./file.deb`, not `dpkg -i` — the leading `./` is what makes `apt` treat it as a
@@ -84,7 +84,7 @@ local file, and only `apt` pulls in the dependencies. If you already run PipeWir
 </summary>
 
 ```sh
-sudo apt install ./call-ducker_*~ubuntu24.04_amd64.deb
+sudo apt install ./call-ducker_*ubuntu24.04_amd64.deb
 ```
 
 Use `apt install ./file.deb`, not `dpkg -i` — the leading `./` is what makes `apt` treat it as a
@@ -128,6 +128,11 @@ Only needed once — the service starts automatically on later logins. Check it 
 
 Every package is built from the published `call-ducker-<version>.tar.xz`, which contains the
 `packaging/` directory, so that archive alone is enough to rebuild any of them.
+
+The `.deb` file names use a dot where the package version uses a tilde, so `apt` reports
+`0.1.1-1~deb13` for a file named `…-1.deb13_amd64.deb`. GitHub rewrites tildes in asset names, and
+the tilde has to stay in the version itself because it is what makes a later official Debian
+revision sort above this build.
 
 There is no Flatpak, and there will not be one: CallDucker installs a systemd user service and
 inspects host processes to recognise games launched by Steam, Heroic, or Lutris. A Flatpak sandbox

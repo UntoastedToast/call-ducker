@@ -13,8 +13,8 @@ assignees: ''
 - [ ] The release commit is on `main`, the signed tag points to it, and CI is green.
 - [ ] The draft contains exactly these assets and nothing else:
   - [ ] one Fedora binary RPM and one source RPM
-  - [ ] `call-ducker_<version>-1~deb13_amd64.deb`
-  - [ ] `call-ducker_<version>-1~ubuntu24.04_amd64.deb`
+  - [ ] `call-ducker_<version>-1.deb13_amd64.deb`
+  - [ ] `call-ducker_<version>-1.ubuntu24.04_amd64.deb`
   - [ ] `PKGBUILD`, whose `sha256sums` matches the published source archive
   - [ ] `call-ducker-<version>.tar.xz` and `SHA256SUMS`
 - [ ] Attestations and `sha256sum --check SHA256SUMS` validate every artifact.
@@ -25,8 +25,8 @@ Each install check confirms that `systemctl --user status call-ducker.service` i
 the unit's `ExecStart` path exists — that is what catches a packaging layout regression.
 
 - [ ] Fedora 43: `sudo dnf install ./call-ducker-*.rpm`.
-- [ ] Debian 13: `sudo apt install ./call-ducker_*~deb13_amd64.deb`.
-- [ ] Ubuntu 24.04: `sudo apt install ./call-ducker_*~ubuntu24.04_amd64.deb`.
+- [ ] Debian 13: `sudo apt install ./call-ducker_*deb13_amd64.deb`.
+- [ ] Ubuntu 24.04: `sudo apt install ./call-ducker_*ubuntu24.04_amd64.deb`.
 - [ ] Linux Mint 22: the Ubuntu 24.04 package installs and smoke-tests in Cinnamon.
 - [ ] Arch Linux: `makepkg -si` from the released `PKGBUILD` succeeds.
 

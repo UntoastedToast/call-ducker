@@ -101,5 +101,11 @@ fi
 
 lintian --fail-on error "${deb}"
 
-cp "${deb}" "${artifact_dir}/"
-echo "Created $(basename "${deb}")"
+# GitHub rewrites a tilde to a dot in release asset names, which would leave
+# SHA256SUMS listing a file name that does not exist after download. Rename the
+# file here so it survives the upload untouched. The package version keeps its
+# tilde -- that is the string apt compares, and the point of the tilde is that
+# it sorts below a later official -1 revision.
+asset_name=$(basename "${deb}" | tr '~' '.')
+cp "${deb}" "${artifact_dir}/${asset_name}"
+echo "Created ${asset_name} (package version ${deb_version})"

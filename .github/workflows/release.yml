@@ -80,8 +80,8 @@ jobs:
           ./scripts/checksum-artifacts.sh artifacts \
             --expect "call-ducker-${version}-*.x86_64.rpm" \
             --expect "call-ducker-${version}-*.src.rpm" \
-            --expect "call-ducker_${version}-1~deb13_amd64.deb" \
-            --expect "call-ducker_${version}-1~ubuntu24.04_amd64.deb" \
+            --expect "call-ducker_${version}-1.deb13_amd64.deb" \
+            --expect "call-ducker_${version}-1.ubuntu24.04_amd64.deb" \
             --expect "call-ducker-${version}.tar.xz" \
             --expect "PKGBUILD"
 
