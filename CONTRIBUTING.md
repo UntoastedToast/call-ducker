@@ -158,6 +158,21 @@ test passes and its evidence is attached to the release issue.
 
 ## Repository policy
 
-The `main` branch requires the distribution build matrix, quality gate, and sanitizer checks.
-Workflow tokens use read-only permissions by default, releases are immutable, and GitHub Actions
+Changes reach `main` through a pull request. No approving review is required, since the project has
+a single maintainer, but the pull request is what makes the checks run before the merge. `main`
+requires all eleven of them:
+
+- the distribution build matrix — `Fedora 43`, `Arch Linux`, `Debian 13`, `Ubuntu 24.04`;
+- `Quality gate` and `Sanitizers`;
+- `Packaging / Source distribution` and the four `Packaging / …` package builds.
+
+A branch has to be up to date with `main` before it merges, conversations have to be resolved, and
+history stays linear, so merges are squashes or rebases rather than merge commits. Force pushes and
+branch deletion are blocked.
+
+**A job's `name` is its status check name.** Renaming a job stops the required check from ever
+reporting and blocks every pull request, so change the required checks on `main` in the same commit.
+
+Workflow tokens use read-only permissions by default — only the release workflow's `publish` job
+holds `contents: write`, and it compiles nothing. Releases are immutable, and GitHub Actions
 references stay pinned to full commit SHAs. Dependabot submits weekly updates for those references.
