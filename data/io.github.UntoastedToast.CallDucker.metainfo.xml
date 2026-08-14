@@ -15,6 +15,7 @@
   <url type="bugtracker">https://github.com/UntoastedToast/call-ducker/issues</url>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.2" date="2026-08-14"><description><p>Fixes a restore journal entry that could report the audio service as unavailable, and a startup race that could make the window show a D-Bus error.</p></description></release>
     <release version="0.1.1" date="2026-08-14"><description><p>First release with packages for Fedora, Debian, Ubuntu, and Arch Linux.</p></description></release>
     <release version="0.1.0" date="2026-08-14"><description><p>Initial release.</p></description></release>
   </releases>

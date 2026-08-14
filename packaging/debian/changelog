@@ -1,3 +1,10 @@
+call-ducker (0.1.2-1) unstable; urgency=medium
+
+  * Retire restore journal entries whose stream has ended.
+  * Export the daemon object before its bus name becomes visible.
+
+ -- UntoastedToast <45534729+UntoastedToast@users.noreply.github.com>  Fri, 14 Aug 2026 22:00:00 +0000
+
 call-ducker (0.1.1-1) unstable; urgency=medium
 
   * First release built for Debian, Ubuntu, and Arch alongside Fedora.
