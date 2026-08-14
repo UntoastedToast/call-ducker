@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-fedora-43:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container: fedora:43
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      RELEASE_NOTICE: |
+        The RPM is not GPG-signed. Verify its GitHub artifact attestation before
+        installing it. DNF may warn that the package is unsigned.
+    steps:
+      - name: Install Git for checkout
+        run: dnf install -y git
+
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: >-
+          dnf install -y
+          appstream clang-tools-extra dbus-daemon dbus-tools dbus-x11 desktop-file-utils gcc gh
+          glib2-devel gtk4-devel json-glib-devel libadwaita-devel pulseaudio-libs-devel
+          pulseaudio meson ninja-build rpm-build rpmlint ShellCheck systemd-rpm-macros vala
+          xorg-x11-server-Xvfb
+
+      - name: Initialize D-Bus machine ID
+        run: dbus-uuidgen > /etc/machine-id
+
+      - name: Trust checkout for source distribution
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - name: Build and validate release packages
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            ./scripts/build-package.sh --tag "${GITHUB_REF_NAME}"
+          else
+            ./scripts/build-package.sh
+          fi
+
+      - name: Attest release assets
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: artifacts/*
+
+      - name: Create or update draft release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if is_draft="$(gh release view "${GITHUB_REF_NAME}" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [[ "${is_draft}" != true ]]; then
+              echo "Refusing to modify published release ${GITHUB_REF_NAME}" >&2
+              exit 1
+            fi
+
+            gh release upload "${GITHUB_REF_NAME}" artifacts/* --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" artifacts/* \
+              --draft \
+              --generate-notes \
+              --notes "${RELEASE_NOTICE}" \
+              --title "CallDucker ${GITHUB_REF_NAME#v}" \
+              --verify-tag
+          fi

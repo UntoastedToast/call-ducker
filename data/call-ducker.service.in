@@ -1,0 +1,17 @@
+[Unit]
+Description=CallDucker automatic volume service
+Documentation=man:call-duckerctl(1)
+
+[Service]
+Type=dbus
+BusName=io.github.UntoastedToast.CallDucker.Daemon
+ExecStart=@libexecdir@/call-ducker-daemon
+Restart=on-failure
+RestartSec=2s
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+
+[Install]
+WantedBy=default.target

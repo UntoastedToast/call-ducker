@@ -1,0 +1,17 @@
+.TH CALL-DUCKER 1 "August 2026" "CallDucker 0.1.0"
+.SH NAME
+call-ducker \- configure automatic game-audio adjustment
+.SH SYNOPSIS
+.B call-ducker
+.SH DESCRIPTION
+.B CallDucker
+opens the GNOME preferences window for the CallDucker user service. Closing
+the window does not stop automatic volume adjustment. The service is disabled until the
+user explicitly selects Enable CallDucker. During a call, matching applications are set to
+the configured absolute target volume and later restored to their original per-channel values.
+.SH FILES
+.I $XDG_STATE_HOME/call-ducker/pulse-restore.json
+contains crash-safe volume restoration state.
+.SH SEE ALSO
+.BR call-duckerctl (1),
+.BR systemctl (1)

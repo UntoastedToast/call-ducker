@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="call-ducker">
+  <schema id="io.github.UntoastedToast.CallDucker" path="/io/github/UntoastedToast/CallDucker/">
+    <key name="enabled" type="b"><default>false</default><summary>Enable automatic volume adjustment</summary></key>
+    <key name="background-volume" type="d"><range min="0.0" max="1.0"/><default>0.70</default><summary>Target volume during calls</summary></key>
+    <key name="auto-detect-games" type="b"><default>true</default><summary>Detect games automatically</summary></key>
+    <key name="call-app-selectors" type="as"><default>['preset:discord']</default><summary>Call application selectors</summary></key>
+    <key name="always-duck-selectors" type="as"><default>[]</default><summary>Applications always adjusted</summary></key>
+    <key name="never-duck-selectors" type="as"><default>['binary:steamwebhelper']</default><summary>Applications never adjusted</summary></key>
+    <key name="onboarding-complete" type="b"><default>false</default><summary>Onboarding completed</summary></key>
+  </schema>
+</schemalist>

@@ -1,0 +1,7 @@
+option('systemd_user_unit_dir', type: 'string', value: '', description: 'systemd user unit directory')
+option(
+  'integration_tests',
+  type: 'feature',
+  value: 'auto',
+  description: 'Run tests that require PulseAudio and Xvfb',
+)

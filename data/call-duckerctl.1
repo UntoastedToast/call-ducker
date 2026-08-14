@@ -1,0 +1,21 @@
+.TH CALL-DUCKERCTL 1 "August 2026" "CallDucker 0.1.0"
+.SH NAME
+call-duckerctl \- inspect and control CallDucker
+.SH SYNOPSIS
+.B call-duckerctl
+.I COMMAND
+.SH COMMANDS
+.BR status " [" --json "]"
+Print daemon status.
+.TP
+.B list-apps
+List audio applications known to the daemon.
+.TP
+.B preview
+Start a five-second preview.
+.TP
+.B restore
+Restore saved volumes immediately and pause until the active call ends.
+.TP
+.BR enable | disable
+Change the setting and systemd user service state.

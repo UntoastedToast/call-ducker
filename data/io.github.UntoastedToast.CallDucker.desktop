@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=CallDucker
+Comment=Adjust game audio while calls are active
+Exec=call-ducker
+Icon=io.github.UntoastedToast.CallDucker
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;
+Keywords=audio;volume;call;game;ducking;
+StartupNotify=true
+DBusActivatable=false

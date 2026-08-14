@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<node>
+  <interface name="io.github.UntoastedToast.CallDucker.Daemon1">
+    <property name="State" type="s" access="read"/>
+    <property name="ActiveTriggerNames" type="as" access="read"/>
+    <property name="DuckedTargetNames" type="as" access="read"/>
+    <property name="PendingRestorations" type="u" access="read"/>
+    <property name="LastError" type="s" access="read"/>
+    <property name="PreviewActive" type="b" access="read"/>
+    <method name="ListApplications">
+      <arg name="applications" direction="out" type="aa{sv}"/>
+    </method>
+    <method name="Preview">
+      <arg name="duration_ms" direction="in" type="u"/>
+    </method>
+    <method name="CancelPreview"/>
+    <method name="Restore"/>
+    <signal name="ApplicationsChanged"/>
+  </interface>
+</node>

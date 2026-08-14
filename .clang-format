@@ -1,0 +1,4 @@
+BasedOnStyle: GNU
+ColumnLimit: 100
+IndentWidth: 2
+SortIncludes: CaseSensitive
