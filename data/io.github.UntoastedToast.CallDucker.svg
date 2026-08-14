@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bubble" x1="64" y1="12" x2="64" y2="100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#62a0ea"/>
+      <stop offset="1" stop-color="#3584e4"/>
+    </linearGradient>
+    <mask id="bottom-profile" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128">
+      <rect width="128" height="128" fill="#000"/>
+      <path
+        d="M36 12h56c15.5 0 28 12.5 28 28v32c0 15.5-12.5 28-28 28H56l-28 16 6-16.2C19.4 98.8 8 86.7 8 72V40c0-15.5 12.5-28 28-28Z"
+        fill="#fff"/>
+      <path
+        d="M36 12h56c15.5 0 28 12.5 28 28v32c0 15.5-12.5 28-28 28H56l-28 16 6-16.2C19.4 98.8 8 86.7 8 72V40c0-15.5 12.5-28 28-28Z"
+        fill="#000"
+        transform="translate(0 -4)"/>
+    </mask>
+  </defs>
+
+  <path
+    d="M36 12h56c15.5 0 28 12.5 28 28v32c0 15.5-12.5 28-28 28H56l-28 16 6-16.2C19.4 98.8 8 86.7 8 72V40c0-15.5 12.5-28 28-28Z"
+    fill="url(#bubble)"/>
+
+  <!-- The masked difference forms an exact 4 px lower profile. -->
+  <rect width="128" height="128" fill="#1c71d8" mask="url(#bottom-profile)"/>
+
+  <!-- Shorter, lower centre bars depict the ducked audio level. -->
+  <path
+    d="M36 40v20M48 32v36M58 54v16M70 50v24M80 34v32M92 36v28"
+    fill="none"
+    stroke="#fff"
+    stroke-width="7"
+    stroke-linecap="round"/>
+</svg>

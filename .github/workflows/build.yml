@@ -1,0 +1,118 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  distributions:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Fedora 43
+            image: fedora:43
+            family: fedora
+          - name: Arch Linux
+            image: archlinux:base-devel
+            family: arch
+          - name: Debian 13
+            image: debian:13
+            family: debian
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            family: debian
+    container: ${{ matrix.image }}
+    steps:
+      - name: Install Fedora dependencies
+        if: matrix.family == 'fedora'
+        run: >-
+          dnf install -y git gcc gettext meson ninja-build vala glib2-devel pulseaudio-libs-devel
+          json-glib-devel gtk4-devel libadwaita-devel desktop-file-utils appstream dbus-daemon
+          dbus-tools dbus-x11 pulseaudio xorg-x11-server-Xvfb
+
+      - name: Install Arch dependencies
+        if: matrix.family == 'arch'
+        run: >-
+          pacman -Syu --noconfirm git gcc gettext meson ninja vala glib2 glib2-devel libpulse
+          json-glib gtk4 libadwaita desktop-file-utils appstream dbus pulseaudio shadow
+          xorg-server-xvfb
+
+      - name: Install Debian-family dependencies
+        if: matrix.family == 'debian'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y git build-essential gettext meson ninja-build valac libglib2.0-dev \
+            libpulse-dev libjson-glib-dev libgtk-4-dev libadwaita-1-dev desktop-file-utils \
+            appstream dbus-daemon pulseaudio xvfb
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Initialize PulseAudio system user
+        if: matrix.family == 'arch'
+        run: useradd --system --user-group --no-create-home pulse
+
+      - name: Initialize D-Bus machine ID
+        run: dbus-uuidgen > /etc/machine-id
+
+      - name: Build and test
+        run: |
+          meson setup build -Dintegration_tests=enabled
+          meson compile -C build
+          meson test -C build --print-errorlogs
+
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: fedora:43
+    steps:
+      - run: >-
+          dnf install -y git gcc gettext meson ninja-build vala glib2-devel pulseaudio-libs-devel
+          json-glib-devel gtk4-devel libadwaita-devel appstream clang-tools-extra dbus-daemon
+          dbus-tools dbus-x11 desktop-file-utils pulseaudio ShellCheck xorg-x11-server-Xvfb
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - run: dbus-uuidgen > /etc/machine-id
+      - name: Format, metadata, build, and test gate
+        env:
+          CALL_DUCKER_INTEGRATION_TESTS: enabled
+        run: ./scripts/check-quality.sh build-quality
+
+  sanitizers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: fedora:43
+    steps:
+      - run: >-
+          dnf install -y git gcc gettext meson ninja-build vala glib2-devel pulseaudio-libs-devel
+          json-glib-devel gtk4-devel libadwaita-devel dbus-daemon dbus-tools dbus-x11
+          desktop-file-utils pulseaudio xorg-x11-server-Xvfb libasan libubsan
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - run: dbus-uuidgen > /etc/machine-id
+      - name: Build and test with ASan and UBSan
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          meson setup build-sanitize -Db_sanitize=address,undefined -Db_lundef=false \
+            -Dintegration_tests=enabled
+          meson compile -C build-sanitize
+          meson test -C build-sanitize --print-errorlogs

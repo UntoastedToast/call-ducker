@@ -1,0 +1,6 @@
+# Meson build directories
+/build/
+/build-sanitize/
+
+# Release artifacts created by scripts/build-package.sh
+/artifacts/

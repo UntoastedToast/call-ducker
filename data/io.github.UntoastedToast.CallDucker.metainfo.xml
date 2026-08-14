@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.UntoastedToast.CallDucker</id>
+  <name>CallDucker</name>
+  <summary>Adjust game audio automatically during calls</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>CallDucker listens for voice-call streams and sets matching games to a chosen target volume. It restores every original channel volume when the last call ends.</p>
+    <p>Discord calls and games launched by Steam, Heroic or Lutris are detected automatically.</p>
+  </description>
+  <launchable type="desktop-id">io.github.UntoastedToast.CallDucker.desktop</launchable>
+  <developer id="io.github.untoastedtoast"><name>UntoastedToast</name></developer>
+  <url type="homepage">https://github.com/UntoastedToast/call-ducker</url>
+  <url type="bugtracker">https://github.com/UntoastedToast/call-ducker/issues</url>
+  <content_rating type="oars-1.1"/>
+  <releases><release version="0.1.0" date="2026-08-14"><description><p>Initial release.</p></description></release></releases>
+</component>

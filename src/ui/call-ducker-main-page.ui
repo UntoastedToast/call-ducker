@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.12"/>
+  <requires lib="adw" version="1.5"/>
+  <object class="GtkAdjustment" id="volume_adjustment">
+    <property name="lower">0</property>
+    <property name="upper">100</property>
+    <property name="step-increment">5</property>
+    <property name="page-increment">10</property>
+  </object>
+  <menu id="main_menu">
+    <item>
+      <attribute name="label" translatable="yes">About CallDucker</attribute>
+      <attribute name="action">app.about</attribute>
+    </item>
+  </menu>
+  <template class="CallDuckerMainPage" parent="AdwNavigationPage">
+    <property name="tag">main</property>
+    <property name="title" translatable="yes">CallDucker</property>
+    <property name="child">
+      <object class="AdwToolbarView">
+        <child type="top">
+          <object class="AdwHeaderBar">
+            <property name="title-widget">
+              <object class="AdwWindowTitle">
+                <property name="title" translatable="yes">CallDucker</property>
+                <property name="subtitle" translatable="yes">Call-aware game audio</property>
+              </object>
+            </property>
+            <child type="end">
+              <object class="GtkMenuButton" id="menu_button">
+                <property name="icon-name">open-menu-symbolic</property>
+                <property name="tooltip-text" translatable="yes">Main Menu</property>
+                <property name="menu-model">main_menu</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <property name="content">
+          <object class="AdwPreferencesPage">
+            <child>
+              <object class="AdwPreferencesGroup">
+                <child>
+                  <object class="AdwSwitchRow" id="enabled_row">
+                    <property name="title" translatable="yes">Automatic volume adjustment</property>
+                    <property name="subtitle" translatable="yes">Run in the background and set game volume during calls</property>
+                    <child type="prefix">
+                      <object class="GtkImage">
+                        <property name="icon-name">audio-volume-low-symbolic</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title" translatable="yes">Activity</property>
+                <child>
+                  <object class="AdwActionRow" id="status_row">
+                    <property name="title" translatable="yes">CallDucker is off</property>
+                    <property name="subtitle" translatable="yes">Turn on automatic volume adjustment to start listening</property>
+                    <child type="prefix">
+                      <object class="GtkImage" id="status_icon">
+                        <property name="icon-name">media-playback-stop-symbolic</property>
+                        <property name="pixel-size">24</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup" id="ducking_group">
+                <property name="title" translatable="yes">Target volume during calls</property>
+                <child>
+                  <object class="AdwSpinRow" id="volume_row">
+                    <property name="title" translatable="yes">Target volume during calls</property>
+                    <property name="subtitle" translatable="yes">0% is silent; 100% is normal volume</property>
+                    <property name="adjustment">volume_adjustment</property>
+                    <property name="climb-rate">5</property>
+                    <property name="digits">0</property>
+                    <property name="numeric">True</property>
+                    <property name="snap-to-ticks">True</property>
+                    <child type="suffix">
+                      <object class="GtkLabel">
+                        <property name="label">%</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="AdwActionRow" id="preview_row">
+                    <property name="title" translatable="yes">Preview</property>
+                    <child type="suffix">
+                      <object class="GtkButton" id="preview_button">
+                        <property name="label" translatable="yes">Preview</property>
+                        <property name="valign">center</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup" id="call_apps_group">
+                <property name="title" translatable="yes">Call detection</property>
+                <property name="description" translatable="yes">A selected application using a microphone or communication stream starts target-volume adjustment.</property>
+                <child>
+                  <object class="AdwActionRow">
+                    <property name="title" translatable="yes">Discord</property>
+                    <property name="subtitle" translatable="yes">Calls are detected automatically</property>
+                    <child type="prefix">
+                      <object class="GtkImage">
+                        <property name="icon-name">audio-input-microphone-symbolic</property>
+                      </object>
+                    </child>
+                    <child type="suffix">
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Built in</property>
+                        <style><class name="dim-label"/></style>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup" id="target_apps_group">
+                <property name="title" translatable="yes">Applications to adjust</property>
+                <child>
+                  <object class="AdwSwitchRow" id="games_row">
+                    <property name="title" translatable="yes">Automatic game detection</property>
+                    <property name="subtitle" translatable="yes">Steam, Heroic and Lutris</property>
+                    <child type="prefix">
+                      <object class="GtkImage">
+                        <property name="icon-name">applications-games-symbolic</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwPreferencesGroup">
+                <property name="title" translatable="yes">Application rules</property>
+                <child>
+                  <object class="AdwActionRow" id="manage_row">
+                    <property name="title" translatable="yes">Manage applications</property>
+                    <property name="subtitle" translatable="yes">Choose call applications and applications to adjust</property>
+                    <property name="activatable">True</property>
+                    <child type="suffix">
+                      <object class="GtkImage">
+                        <property name="icon-name">go-next-symbolic</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </property>
+      </object>
+    </property>
+  </template>
+</interface>

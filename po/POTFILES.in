@@ -1,0 +1,11 @@
+src/application.vala
+src/main.vala
+src/call-ducker-window.vala
+src/applications-view.vala
+src/ui/call-ducker-window.ui
+src/ui/call-ducker-main-page.ui
+src/ui/call-ducker-applications-page.ui
+src/status-view-state.vala
+data/io.github.UntoastedToast.CallDucker.desktop
+data/io.github.UntoastedToast.CallDucker.metainfo.xml
+data/io.github.UntoastedToast.CallDucker.gschema.xml
