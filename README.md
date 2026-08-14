@@ -13,18 +13,100 @@ not supported. GTK 4.12 and libadwaita 1.5 remain minimum requirements.
 
 ## Install a release
 
-Binary releases currently contain an x86_64 Fedora RPM. Download it from the
-[latest GitHub Release](https://github.com/UntoastedToast/call-ducker/releases/latest), verify its
-GitHub attestation, and install it:
+Every release ships an x86_64 package for each supported distribution. Pick the matching asset from
+the [latest GitHub Release](https://github.com/UntoastedToast/call-ducker/releases/latest):
+
+| Distribution | Asset |
+| --- | --- |
+| Fedora 43 and newer | `call-ducker-<version>-1.fc*.x86_64.rpm` |
+| Debian 13 and newer | `call-ducker_<version>-1~deb13_amd64.deb` |
+| Ubuntu 24.04+ and Linux Mint 22+ | `call-ducker_<version>-1~ubuntu24.04_amd64.deb` |
+| Arch Linux | `PKGBUILD` |
+
+**Only the Fedora package has been tested in real use so far.** Every package is built and passes
+the full automated test suite on its own distribution, including the PulseAudio integration test.
+But the live acceptance test — a real desktop session, real games, and a real voice call, against
+both PulseAudio and `pipewire-pulse` — has only been carried out on Fedora. Treat the Debian,
+Ubuntu, Mint, and Arch packages as working but unproven, and please
+[report anything that misbehaves](https://github.com/UntoastedToast/call-ducker/issues).
+
+### Verify the download first
+
+The packages are not GPG-signed, so `dnf` and `apt` warn that they are unsigned. Verify the GitHub
+build attestation instead. Download `SHA256SUMS` alongside your package, then, from the download
+directory:
 
 ```sh
-gh attestation verify call-ducker-*.rpm \
+gh attestation verify call-ducker* \
   --repo UntoastedToast/call-ducker \
   --signer-workflow UntoastedToast/call-ducker/.github/workflows/release.yml
-sudo dnf install ./call-ducker-*.rpm
+sha256sum --ignore-missing --check SHA256SUMS
 ```
 
-Arch, Debian, Ubuntu, and Mint users install from source for now.
+This needs the [GitHub CLI](https://cli.github.com/). `--ignore-missing` checks the assets you
+actually downloaded and skips the rest.
+
+### Fedora 43 and newer
+
+```sh
+sudo dnf install ./call-ducker-*.x86_64.rpm
+```
+
+`dnf` resolves the PulseAudio dependency itself. Confirm the unsigned-package prompt.
+
+### Debian 13 and newer
+
+```sh
+sudo apt install ./call-ducker_*~deb13_amd64.deb
+```
+
+Use `apt install ./file.deb`, not `dpkg -i` — the leading `./` is what makes `apt` treat it as a
+local file, and only `apt` pulls in the dependencies. If you already run PipeWire, `apt` keeps it;
+`pulseaudio` is only installed when no PulseAudio-compatible server is present yet.
+
+### Ubuntu 24.04+ and Linux Mint 22+
+
+```sh
+sudo apt install ./call-ducker_*~ubuntu24.04_amd64.deb
+```
+
+Linux Mint 22 is built on Ubuntu 24.04, so it uses the Ubuntu package. There is no separate Mint
+asset.
+
+### Arch Linux
+
+Arch has no binary asset on purpose: Arch is a rolling release, so a package built against one
+week's `gtk4` or `libpulse` breaks as soon as those libraries change. Build from the released
+`PKGBUILD`, which downloads and checksums the published source archive:
+
+```sh
+mkdir call-ducker && cd call-ducker
+curl -LO https://github.com/UntoastedToast/call-ducker/releases/latest/download/PKGBUILD
+makepkg -si
+```
+
+`makepkg -s` installs the build dependencies and `-i` installs the finished package.
+
+### Start the service
+
+```sh
+systemctl --user start call-ducker.service
+```
+
+Only needed once — the service starts automatically on later logins. Check it with
+`systemctl --user status call-ducker.service`, then open CallDucker from your application menu.
+
+### Notes
+
+Every package is built from the published `call-ducker-<version>.tar.xz`, which contains the
+`packaging/` directory, so that archive alone is enough to rebuild any of them.
+
+There is no Flatpak, and there will not be one: CallDucker installs a systemd user service and
+inspects host processes to recognise games launched by Steam, Heroic, or Lutris. A Flatpak sandbox
+permits neither, so a Flatpak build would install and run but never detect a game.
+
+To uninstall, use `sudo dnf remove call-ducker`, `sudo apt remove call-ducker`, or
+`sudo pacman -R call-ducker`.
 
 ## Build from source
 

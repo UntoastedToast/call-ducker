@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@
+
+# debhelper passes --libexecdir=lib/$(DEB_HOST_MULTIARCH), which would put the
+# private daemon in the multiarch library directory -- and meson.build templates
+# that same path into call-ducker.service's ExecStart. Pin it to a private
+# directory instead. The systemd user unit directory already resolves correctly
+# from the meson default, but is stated so an upstream default change cannot move
+# the unit out of dh_installsystemduser's scan path.
+#
+# werror is off here on purpose: dpkg-buildflags adds -Werror=format-security and
+# the toolchain moves independently of this project, so a compiler bump must not
+# break a distribution build. CI keeps -Dwerror=true via check-quality.sh.
+override_dh_auto_configure:
+	dh_auto_configure -- \
+	  -Dintegration_tests=enabled \
+	  -Dwerror=false \
+	  --libexecdir=lib/call-ducker \
+	  -Dsystemd_user_unit_dir=/usr/lib/systemd/user

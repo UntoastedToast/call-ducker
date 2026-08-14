@@ -11,14 +11,29 @@ assignees: ''
 ## Candidate
 
 - [ ] The release commit is on `main`, the signed tag points to it, and CI is green.
-- [ ] The draft contains one Fedora binary RPM, one source RPM, one source archive, and checksums.
+- [ ] The draft contains exactly these assets and nothing else:
+  - [ ] one Fedora binary RPM and one source RPM
+  - [ ] `call-ducker_<version>-1~deb13_amd64.deb`
+  - [ ] `call-ducker_<version>-1~ubuntu24.04_amd64.deb`
+  - [ ] `PKGBUILD`, whose `sha256sums` matches the published source archive
+  - [ ] `call-ducker-<version>.tar.xz` and `SHA256SUMS`
 - [ ] Attestations and `sha256sum --check SHA256SUMS` validate every artifact.
-- [ ] The Fedora RPM installs cleanly and `call-ducker.service` starts without errors.
 
-## Automated and source-build coverage
+## Install coverage
+
+Each install check confirms that `systemctl --user status call-ducker.service` is clean and that
+the unit's `ExecStart` path exists — that is what catches a packaging layout regression.
+
+- [ ] Fedora 43: `sudo dnf install ./call-ducker-*.rpm`.
+- [ ] Debian 13: `sudo apt install ./call-ducker_*~deb13_amd64.deb`.
+- [ ] Ubuntu 24.04: `sudo apt install ./call-ducker_*~ubuntu24.04_amd64.deb`.
+- [ ] Linux Mint 22: the Ubuntu 24.04 package installs and smoke-tests in Cinnamon.
+- [ ] Arch Linux: `makepkg -si` from the released `PKGBUILD` succeeds.
+
+## Automated coverage
 
 - [ ] Fedora 43, Arch, Debian 13, and Ubuntu 24.04 CI builds and tests passed.
-- [ ] Linux Mint 22 was built from source and smoke-tested in Cinnamon.
+- [ ] The packaging workflow built the RPM, both debs, and the Arch package.
 - [ ] The private PulseAudio/null-sink integration test passed.
 
 ## Live audio coverage
@@ -53,3 +68,5 @@ GNOME, Plasma, and Cinnamon application mixers to record values.
 - [ ] Logs contain no unexplained backend, journal, or D-Bus errors.
 - [ ] Evidence and environment details are attached to the release issue.
 - [ ] A maintainer reviewed the evidence and published the draft.
+- [ ] The AUR `call-ducker` package was updated from the released `PKGBUILD` and its `.SRCINFO`
+      regenerated.

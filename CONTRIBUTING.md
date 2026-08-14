@@ -92,10 +92,15 @@ easy to follow. Maintainers may squash the commits when merging.
 
 ## Release process
 
-Maintainers prepare releases from `main`. A release commit updates these version sources together:
+Maintainers prepare releases from `main`. A release commit updates these version sources together;
+`./scripts/check-versions.sh` fails on any mismatch:
 
-- the project version in `meson.build`;
-- `Version` and the dated `%changelog` entry in `call-ducker.spec`;
+- the project version in `meson.build`, which is the source of truth;
+- `Version` and the dated `%changelog` entry in `packaging/rpm/call-ducker.spec`;
+- the version and a new entry in `packaging/debian/changelog`, with a plain `-1` revision — the
+  per-distribution suffix is added at build time;
+- `pkgver` in `packaging/arch/PKGBUILD`, whose `sha256sums` stays `SKIP` because the real checksum
+  only exists once the source archive has been built;
 - the newest release in `data/io.github.UntoastedToast.CallDucker.metainfo.xml`;
 - the version in both manpage headers.
 
@@ -104,6 +109,22 @@ Run the complete Fedora package build before merging the release commit:
 ```sh
 ./scripts/build-package.sh
 ```
+
+That covers the Fedora path only. The Debian and Arch packaging is built by CI on every pull
+request, and can be reproduced locally against a container:
+
+```sh
+./scripts/build-source-dist.sh
+podman run --rm -v "$PWD:/src:z" -w /src debian:13 bash -c \
+  './scripts/ci/setup-container.sh debian package &&
+   ./scripts/package-deb.sh dist/call-ducker-*.tar.xz deb13 trixie'
+podman run --rm -v "$PWD:/src:z" -w /src archlinux:base-devel bash -c \
+  './scripts/ci/setup-container.sh arch package &&
+   ./scripts/package-arch.sh dist/call-ducker-*.tar.xz'
+```
+
+`meson dist` archives `HEAD`, so commit the release changes before building; an uncommitted
+packaging file is silently missing from the archive.
 
 After the release commit reaches `main`, derive the version from the repository, create a signed
 SemVer tag, and push it:
@@ -120,11 +141,16 @@ git push origin "v${version}"
 Release tags are immutable. Correct a release with a new patch version instead of moving or reusing
 a tag.
 
-The tag workflow verifies every version source, builds and tests the project on Fedora x86_64,
-validates the metadata and RPM, and creates a draft GitHub Release. The draft contains the binary
-RPM, source RPM, source archive, and `SHA256SUMS`; GitHub build provenance is attached to every
-asset. Rerunning the workflow replaces assets in an existing draft and leaves published releases
-untouched.
+The tag workflow verifies every version source, builds and tests the project, and creates a draft
+GitHub Release containing the Fedora binary RPM, the source RPM, the Debian 13 and Ubuntu 24.04
+`.deb` packages, the AUR-ready `PKGBUILD`, the source archive, and `SHA256SUMS`. GitHub build
+provenance is attached to every asset. Rerunning the workflow refreshes the draft — it replaces
+assets, removes ones that are no longer produced, regenerates the notes, and leaves published
+releases untouched.
+
+After publishing, update the AUR package: copy the released `PKGBUILD` into the `call-ducker` AUR
+repository, regenerate `.SRCINFO` with `makepkg --printsrcinfo > .SRCINFO`, and push. The released
+`PKGBUILD` already carries the checksum of the published source archive.
 
 Open a GitHub issue from the [release checklist](.github/ISSUE_TEMPLATE/release.md) and complete
 every item against the draft artifacts. Publish the release only after the live audio acceptance

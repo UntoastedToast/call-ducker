@@ -1,86 +1,90 @@
 name: Release
 
+# A tag push builds every distribution package and creates a draft release.
+# workflow_dispatch runs the same build for validation but never publishes:
+# only a tag can produce a release.
+
 on:
   workflow_dispatch:
   push:
     tags:
       - "v*"
-      - "[0-9]*"
+
+permissions:
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release-fedora-43:
+  packages:
+    name: Packages
+    uses: ./.github/workflows/package.yml
+
+  publish:
+    name: Publish draft release
+    needs: packages
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    container: fedora:43
+    timeout-minutes: 15
+    # The only job that can write to the repository, and it compiles nothing.
     permissions:
       contents: write
       id-token: write
       attestations: write
     env:
       RELEASE_NOTICE: |
-        The RPM is not GPG-signed. Verify its GitHub artifact attestation before
-        installing it. DNF may warn that the package is unsigned.
-    steps:
-      - name: Install Git for checkout
-        run: dnf install -y git
+        **Only the Fedora package has been tested in real use so far.** Every
+        package is built and passes the full automated test suite on its own
+        distribution, but the live acceptance test — a real desktop session, real
+        games, and a real voice call — has only been carried out on Fedora. The
+        Debian, Ubuntu, Mint, and Arch packages are working but unproven; please
+        report anything that misbehaves.
 
+        The RPM and DEB packages are not GPG-signed. Verify their GitHub artifact
+        attestation before installing. DNF and APT may warn that the package is
+        unsigned.
+
+        Arch Linux has no binary asset by design: Arch is a rolling release, so a
+        prebuilt package would break as soon as a shared library changes. Build
+        the attached PKGBUILD instead.
+    steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0
           persist-credentials: false
 
-      - name: Install build dependencies
-        run: >-
-          dnf install -y
-          appstream clang-tools-extra dbus-daemon dbus-tools dbus-x11 desktop-file-utils gcc gh
-          glib2-devel gtk4-devel json-glib-devel libadwaita-devel pulseaudio-libs-devel
-          pulseaudio meson ninja-build rpm-build rpmlint ShellCheck systemd-rpm-macros vala
-          xorg-x11-server-Xvfb
+      - name: Download source archive
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: source-dist
+          path: artifacts
 
-      - name: Initialize D-Bus machine ID
-        run: dbus-uuidgen > /etc/machine-id
+      - name: Download distribution packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: pkg-*
+          merge-multiple: true
+          path: artifacts
 
-      - name: Trust checkout for source distribution
-        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
-
-      - name: Build and validate release packages
+      - name: Verify the asset set and write checksums
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            ./scripts/build-package.sh --tag "${GITHUB_REF_NAME}"
-          else
-            ./scripts/build-package.sh
-          fi
+          version=${GITHUB_REF_NAME#v}
+          ./scripts/checksum-artifacts.sh artifacts \
+            --expect "call-ducker-${version}-*.x86_64.rpm" \
+            --expect "call-ducker-${version}-*.src.rpm" \
+            --expect "call-ducker_${version}-1~deb13_amd64.deb" \
+            --expect "call-ducker_${version}-1~ubuntu24.04_amd64.deb" \
+            --expect "call-ducker-${version}.tar.xz" \
+            --expect "PKGBUILD"
 
       - name: Attest release assets
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: artifacts/*
 
-      - name: Create or update draft release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      - name: Create or refresh draft release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          if is_draft="$(gh release view "${GITHUB_REF_NAME}" --json isDraft --jq .isDraft 2>/dev/null)"; then
-            if [[ "${is_draft}" != true ]]; then
-              echo "Refusing to modify published release ${GITHUB_REF_NAME}" >&2
-              exit 1
-            fi
-
-            gh release upload "${GITHUB_REF_NAME}" artifacts/* --clobber
-          else
-            gh release create "${GITHUB_REF_NAME}" artifacts/* \
-              --draft \
-              --generate-notes \
-              --notes "${RELEASE_NOTICE}" \
-              --title "CallDucker ${GITHUB_REF_NAME#v}" \
-              --verify-tag
-          fi
+        run: ./scripts/publish-release.sh "${GITHUB_REF_NAME}" artifacts

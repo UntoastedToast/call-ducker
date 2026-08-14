@@ -2,5 +2,8 @@
 /build/
 /build-sanitize/
 
+# Source archive created by scripts/build-source-dist.sh
+/dist/
+
 # Release artifacts created by scripts/build-package.sh
 /artifacts/

@@ -9,7 +9,8 @@ cd "${repo_root}"
 
 mapfile -t c_sources < <(find src tests -type f \( -name '*.c' -o -name '*.h' \) -print | sort)
 clang-format --dry-run --Werror "${c_sources[@]}"
-shellcheck scripts/*.sh tests/*.sh
+mapfile -t shell_sources < <(find scripts tests -type f -name '*.sh' -print | sort)
+shellcheck "${shell_sources[@]}"
 
 if [[ -f ${build_dir}/meson-private/coredata.dat ]]; then
   meson setup --reconfigure "${build_dir}" "${repo_root}" -Dwerror=true \

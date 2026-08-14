@@ -1,0 +1,45 @@
+Source: call-ducker
+Section: sound
+Priority: optional
+Maintainer: UntoastedToast <45534729+UntoastedToast@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13),
+               meson,
+               ninja-build,
+               valac,
+               pkgconf,
+               gettext,
+               libglib2.0-dev (>= 2.74),
+               libpulse-dev,
+               libjson-glib-dev,
+               libgtk-4-dev (>= 4.12),
+               libadwaita-1-dev (>= 1.5),
+               desktop-file-utils,
+               appstream,
+               dbus-daemon <!nocheck>,
+               pulseaudio <!nocheck>,
+               xvfb <!nocheck>,
+               xauth <!nocheck>
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/UntoastedToast/call-ducker
+Vcs-Git: https://github.com/UntoastedToast/call-ducker.git
+Vcs-Browser: https://github.com/UntoastedToast/call-ducker
+
+Package: call-ducker
+Architecture: any
+# pipewire-pulse does not declare Provides: pulseaudio, so the alternation has to
+# be explicit. PipeWire comes first because it is the default on both Debian 13
+# and Ubuntu 24.04; naming pulseaudio first would pull the legacy server onto a
+# system that already has a working pipewire-pulse.
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         pipewire-pulse | pulseaudio
+Description: Adjust game audio automatically during calls
+ CallDucker sets background applications to a chosen absolute volume while a
+ voice call is active, then restores every stream to its original per-channel
+ volume, including its channel layout.
+ .
+ It works with a native PulseAudio server and with PipeWire's pipewire-pulse
+ compatibility server. The daemon runs as a systemd user service and talks to
+ libpulse directly; it does not access the network, collect telemetry, or
+ require a root service.

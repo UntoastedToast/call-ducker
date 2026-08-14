@@ -34,41 +34,26 @@ jobs:
             image: ubuntu:24.04
             family: debian
     container: ${{ matrix.image }}
+    env:
+      PACKAGE_FAMILY: ${{ matrix.family }}
     steps:
-      - name: Install Fedora dependencies
-        if: matrix.family == 'fedora'
-        run: >-
-          dnf install -y git gcc gettext meson ninja-build vala glib2-devel pulseaudio-libs-devel
-          json-glib-devel gtk4-devel libadwaita-devel desktop-file-utils appstream dbus-daemon
-          dbus-tools dbus-x11 pulseaudio xorg-x11-server-Xvfb
-
-      - name: Install Arch dependencies
-        if: matrix.family == 'arch'
-        run: >-
-          pacman -Syu --noconfirm git gcc gettext meson ninja vala glib2 glib2-devel libpulse
-          json-glib gtk4 libadwaita desktop-file-utils appstream dbus pulseaudio shadow
-          xorg-server-xvfb
-
-      - name: Install Debian-family dependencies
-        if: matrix.family == 'debian'
+      - name: Install Git for checkout
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          apt-get update
-          apt-get install -y git build-essential gettext meson ninja-build valac libglib2.0-dev \
-            libpulse-dev libjson-glib-dev libgtk-4-dev libadwaita-1-dev desktop-file-utils \
-            appstream dbus-daemon pulseaudio xvfb
+          case "${PACKAGE_FAMILY}" in
+            fedora) dnf install -y git ;;
+            debian) apt-get update && apt-get install -y git ;;
+            arch) pacman -Syu --noconfirm git ;;
+          esac
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Initialize PulseAudio system user
-        if: matrix.family == 'arch'
-        run: useradd --system --user-group --no-create-home pulse
-
-      - name: Initialize D-Bus machine ID
-        run: dbus-uuidgen > /etc/machine-id
+      - name: Install build dependencies
+        run: ./scripts/ci/setup-container.sh "${PACKAGE_FAMILY}" build
 
       - name: Build and test
         run: |
@@ -77,36 +62,44 @@ jobs:
           meson test -C build --print-errorlogs
 
   quality:
+    name: Quality gate
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: fedora:43
     steps:
-      - run: >-
-          dnf install -y git gcc gettext meson ninja-build vala glib2-devel pulseaudio-libs-devel
-          json-glib-devel gtk4-devel libadwaita-devel appstream clang-tools-extra dbus-daemon
-          dbus-tools dbus-x11 desktop-file-utils pulseaudio ShellCheck xorg-x11-server-Xvfb
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install Git for checkout
+        run: dnf install -y git
+
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - run: dbus-uuidgen > /etc/machine-id
+
+      - name: Install build and quality dependencies
+        run: ./scripts/ci/setup-container.sh fedora quality
+
       - name: Format, metadata, build, and test gate
         env:
           CALL_DUCKER_INTEGRATION_TESTS: enabled
         run: ./scripts/check-quality.sh build-quality
 
   sanitizers:
+    name: Sanitizers
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: fedora:43
     steps:
-      - run: >-
-          dnf install -y git gcc gettext meson ninja-build vala glib2-devel pulseaudio-libs-devel
-          json-glib-devel gtk4-devel libadwaita-devel dbus-daemon dbus-tools dbus-x11
-          desktop-file-utils pulseaudio xorg-x11-server-Xvfb libasan libubsan
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install Git for checkout
+        run: dnf install -y git
+
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - run: dbus-uuidgen > /etc/machine-id
+
+      - name: Install build and sanitizer dependencies
+        run: ./scripts/ci/setup-container.sh fedora sanitize
+
       - name: Build and test with ASan and UBSan
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
@@ -116,3 +109,7 @@ jobs:
             -Dintegration_tests=enabled
           meson compile -C build-sanitize
           meson test -C build-sanitize --print-errorlogs
+
+  packaging:
+    name: Packaging
+    uses: ./.github/workflows/package.yml

@@ -19,7 +19,9 @@ repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "${repo_root}"
 
 meson_version=$(sed -n "s/^project('call-ducker'.*version: '\([^']*\)'.*/\1/p" meson.build)
-spec_version=$(sed -n 's/^Version:[[:space:]]*//p' call-ducker.spec)
+spec_version=$(sed -n 's/^Version:[[:space:]]*//p' packaging/rpm/call-ducker.spec)
+deb_version=$(sed -n '1s/^call-ducker (\([0-9.]*\)-.*/\1/p' packaging/debian/changelog)
+pkgbuild_version=$(sed -n 's/^pkgver=//p' packaging/arch/PKGBUILD)
 appstream_version=$(grep -oE '<release version="[^"]+"' \
   data/io.github.UntoastedToast.CallDucker.metainfo.xml | \
   sed -n '1{s/.*version="//; s/"$//; p;}')
@@ -33,6 +35,8 @@ fi
 
 for version_source in \
   "RPM spec:${spec_version}" \
+  "Debian changelog:${deb_version}" \
+  "Arch PKGBUILD:${pkgbuild_version}" \
   "AppStream:${appstream_version}" \
   "call-ducker.1:${man_version}" \
   "call-duckerctl.1:${ctl_man_version}"; do

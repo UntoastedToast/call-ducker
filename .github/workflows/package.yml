@@ -1,0 +1,141 @@
+name: Package
+
+# Builds the canonical source archive once and then builds every distribution
+# package from that exact archive. Called by both build.yml (so packaging
+# breakage surfaces on a pull request instead of at tag time) and release.yml
+# (so the published assets come from a verified build).
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: Source distribution
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container: fedora:43
+    steps:
+      - name: Install Git for checkout
+        run: dnf install -y git
+
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: ./scripts/ci/setup-container.sh fedora source
+
+      - name: Trust checkout for source distribution
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - name: Build and verify the source archive
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            ./scripts/build-source-dist.sh --tag "${GITHUB_REF_NAME}"
+          else
+            ./scripts/build-source-dist.sh
+          fi
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: source-dist
+          path: dist/call-ducker-*.tar.xz
+          if-no-files-found: error
+
+  packages:
+    name: ${{ matrix.name }}
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Fedora 43 RPM
+            id: fedora
+            image: fedora:43
+            family: fedora
+          - name: Debian 13 deb
+            id: deb13
+            image: debian:13
+            family: debian
+            suffix: deb13
+            codename: trixie
+          - name: Ubuntu 24.04 deb
+            id: ubuntu2404
+            image: ubuntu:24.04
+            family: debian
+            suffix: ubuntu24.04
+            codename: noble
+          - name: Arch PKGBUILD
+            id: arch
+            image: archlinux:base-devel
+            family: arch
+    # Matrix values reach the scripts through the environment rather than through
+    # template interpolation into a shell script.
+    env:
+      PACKAGE_FAMILY: ${{ matrix.family }}
+      PACKAGE_SUFFIX: ${{ matrix.suffix }}
+      PACKAGE_CODENAME: ${{ matrix.codename }}
+    steps:
+      - name: Install Git for checkout
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          case "${PACKAGE_FAMILY}" in
+            fedora) dnf install -y git ;;
+            debian) apt-get update && apt-get install -y git ;;
+            arch) pacman -Syu --noconfirm git ;;
+          esac
+
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install packaging dependencies
+        run: ./scripts/ci/setup-container.sh "${PACKAGE_FAMILY}" package
+
+      - name: Download source archive
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: source-dist
+          path: dist
+
+      - name: Build distribution package
+        run: |
+          set -euo pipefail
+
+          mapfile -t archives < <(find dist -maxdepth 1 -type f -name 'call-ducker-*.tar.xz')
+          if [[ ${#archives[@]} -ne 1 ]]; then
+            echo "Expected exactly one source archive in dist/" >&2
+            exit 1
+          fi
+          archive=${archives[0]}
+
+          case "${PACKAGE_FAMILY}" in
+            fedora)
+              ./scripts/package-rpm.sh "${archive}"
+              ;;
+            debian)
+              ./scripts/package-deb.sh "${archive}" "${PACKAGE_SUFFIX}" "${PACKAGE_CODENAME}"
+              ;;
+            arch)
+              # Arch users install from the AUR, so only the PKGBUILD is published.
+              ./scripts/package-arch.sh "${archive}" --emit-aur artifacts/PKGBUILD
+              ;;
+          esac
+
+      - name: Upload distribution package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pkg-${{ matrix.id }}
+          path: artifacts/*
+          if-no-files-found: error
