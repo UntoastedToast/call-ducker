@@ -1,6 +1,6 @@
 # Maintainer: UntoastedToast <45534729+UntoastedToast@users.noreply.github.com>
 pkgname=call-ducker
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc='Adjust game audio automatically during calls'
 arch=('x86_64')
