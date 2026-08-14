@@ -18,10 +18,10 @@ the [latest GitHub Release](https://github.com/UntoastedToast/call-ducker/releas
 
 | Distribution | Asset |
 | --- | --- |
-| Fedora 43 and newer | `call-ducker-<version>-1.fc*.x86_64.rpm` |
-| Debian 13 and newer | `call-ducker_<version>-1~deb13_amd64.deb` |
-| Ubuntu 24.04+ and Linux Mint 22+ | `call-ducker_<version>-1~ubuntu24.04_amd64.deb` |
-| Arch Linux | `PKGBUILD` |
+| <img src="https://cdn.simpleicons.org/fedora/51A2DA" height="14" align="top" alt=""> Fedora 43 and newer | `call-ducker-<version>-1.fc*.x86_64.rpm` |
+| <img src="https://cdn.simpleicons.org/debian/A81D33" height="14" align="top" alt=""> Debian 13 and newer | `call-ducker_<version>-1~deb13_amd64.deb` |
+| <img src="https://cdn.simpleicons.org/ubuntu/E95420" height="14" align="top" alt=""> <img src="https://cdn.simpleicons.org/linuxmint/87CF3E" height="14" align="top" alt=""> Ubuntu 24.04+ and Linux Mint 22+ | `call-ducker_<version>-1~ubuntu24.04_amd64.deb` |
+| <img src="https://cdn.simpleicons.org/archlinux/1793D1" height="14" align="top" alt=""> Arch Linux | `PKGBUILD` |
 
 **Only the Fedora package has been tested in real use so far.** Every package is built and passes
 the full automated test suite on its own distribution, including the PulseAudio integration test.
@@ -46,7 +46,11 @@ sha256sum --ignore-missing --check SHA256SUMS
 This needs the [GitHub CLI](https://cli.github.com/). `--ignore-missing` checks the assets you
 actually downloaded and skips the rest.
 
-### Fedora 43 and newer
+<details open>
+<summary>
+  <img src="https://cdn.simpleicons.org/fedora/51A2DA" height="16" align="top" alt="">
+  <b>Fedora 43 and newer</b>
+</summary>
 
 ```sh
 sudo dnf install ./call-ducker-*.x86_64.rpm
@@ -54,7 +58,13 @@ sudo dnf install ./call-ducker-*.x86_64.rpm
 
 `dnf` resolves the PulseAudio dependency itself. Confirm the unsigned-package prompt.
 
-### Debian 13 and newer
+</details>
+
+<details>
+<summary>
+  <img src="https://cdn.simpleicons.org/debian/A81D33" height="16" align="top" alt="">
+  <b>Debian 13 and newer</b>
+</summary>
 
 ```sh
 sudo apt install ./call-ducker_*~deb13_amd64.deb
@@ -64,16 +74,32 @@ Use `apt install ./file.deb`, not `dpkg -i` — the leading `./` is what makes `
 local file, and only `apt` pulls in the dependencies. If you already run PipeWire, `apt` keeps it;
 `pulseaudio` is only installed when no PulseAudio-compatible server is present yet.
 
-### Ubuntu 24.04+ and Linux Mint 22+
+</details>
+
+<details>
+<summary>
+  <img src="https://cdn.simpleicons.org/ubuntu/E95420" height="16" align="top" alt="">
+  <img src="https://cdn.simpleicons.org/linuxmint/87CF3E" height="16" align="top" alt="">
+  <b>Ubuntu 24.04+ and Linux Mint 22+</b>
+</summary>
 
 ```sh
 sudo apt install ./call-ducker_*~ubuntu24.04_amd64.deb
 ```
 
+Use `apt install ./file.deb`, not `dpkg -i` — the leading `./` is what makes `apt` treat it as a
+local file, and only `apt` pulls in the dependencies.
+
 Linux Mint 22 is built on Ubuntu 24.04, so it uses the Ubuntu package. There is no separate Mint
 asset.
 
-### Arch Linux
+</details>
+
+<details>
+<summary>
+  <img src="https://cdn.simpleicons.org/archlinux/1793D1" height="16" align="top" alt="">
+  <b>Arch Linux</b>
+</summary>
 
 Arch has no binary asset on purpose: Arch is a rolling release, so a package built against one
 week's `gtk4` or `libpulse` breaks as soon as those libraries change. Build from the released
@@ -86,6 +112,8 @@ makepkg -si
 ```
 
 `makepkg -s` installs the build dependencies and `-i` installs the finished package.
+
+</details>
 
 ### Start the service
 
