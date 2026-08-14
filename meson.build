@@ -1,4 +1,4 @@
-project('call-ducker', ['c', 'vala'], version: '0.1.0', license: 'GPL-3.0-or-later', default_options: ['c_std=c17', 'warning_level=2', 'werror=true'])
+project('call-ducker', ['c', 'vala'], version: '0.1.1', license: 'GPL-3.0-or-later', default_options: ['c_std=c17', 'warning_level=2', 'werror=true'])
 
 gnome = import('gnome')
 i18n = import('i18n')

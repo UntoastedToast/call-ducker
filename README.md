@@ -6,7 +6,7 @@ PulseAudio server and PipeWire's `pipewire-pulse` compatibility server. The daem
 GLib main-loop integration; it does not invoke `pactl`, `wpctl`, `pw-cli`, access the network,
 collect telemetry, or require a root service.
 
-Version 0.1.0 supports Fedora 43+, current Arch Linux, Debian 13+, Ubuntu 24.04+, and Linux Mint
+Version 0.1.1 supports Fedora 43+, current Arch Linux, Debian 13+, Ubuntu 24.04+, and Linux Mint
 22+. GNOME, KDE Plasma, and Cinnamon are the tested desktops. A local PulseAudio-compatible server
 and systemd user services are required. Pure ALSA, JACK, and PipeWire without `pipewire-pulse` are
 not supported. GTK 4.12 and libadwaita 1.5 remain minimum requirements.
@@ -187,8 +187,6 @@ journalctl --user -u call-ducker.service
 Original volumes are stored atomically in
 `$XDG_STATE_HOME/call-ducker/pulse-restore.json`, including their channel layouts. An unknown or
 corrupt journal is preserved and blocks adjustment instead of risking an incorrect restore.
-Version 0.1.0 deliberately does not read, convert, detect, or modify the old `restore.json` file or
-old settings.
 
 ## Contributing
 

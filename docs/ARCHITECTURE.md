@@ -1,7 +1,7 @@
 # Architecture
 
 CallDucker installs a session-bus daemon, a GTK/libadwaita client, and a command-line client. The
-D-Bus XML remains the stable boundary between them; version 0.1.0 defines the method, property,
+D-Bus XML remains the stable boundary between them; version 0.1.1 defines the method, property,
 or signal signatures.
 
 ## Audio backend
@@ -65,15 +65,14 @@ and journal state only from the name-acquired callback, so a second instance exi
 filesystem side effects. Losing an acquired name follows the asynchronous restore path with a
 five-second shutdown guard.
 
-The pre-0.2 `restore.json` format and the `duck-factor` setting have no migration path and are never
-opened or modified.
-
 ## Tests
 
 Unit tests cover convergence, delayed and superseded operations, index reuse, multichannel remaps,
 ambiguous restore IDs, fail-closed journals, D-Bus completion, and the complete published contract.
 The backend test starts a private PulseAudio server with a null sink and exercises playback,
 recording, subscriptions, identity validation, mute preservation, and reconnect. CI forces these and
-the Xvfb UI test on Fedora 43, Arch, Debian 13, and Ubuntu 24.04, including ASan/UBSan. Before release,
-Linux Mint 22 receives a manual source build and Cinnamon smoke test; a Fedora live session
-additionally tests `pipewire-pulse` and desktop mixer values.
+the Xvfb UI test on Fedora 43, Arch, Debian 13, and Ubuntu 24.04, including ASan/UBSan. CI also
+builds the Fedora RPM, both Debian-family packages, and the Arch package from the same source
+archive on every pull request. Before release, Linux Mint 22 installs the Ubuntu 24.04 package for a
+Cinnamon smoke test; a Fedora live session additionally tests `pipewire-pulse` and desktop mixer
+values.

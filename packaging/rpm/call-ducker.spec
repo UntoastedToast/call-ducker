@@ -1,5 +1,5 @@
 Name:           call-ducker
-Version:        0.1.0
+Version:        0.1.1
 Release:        1%{?dist}
 Summary:        Adjust game audio automatically during calls
 License:        GPL-3.0-or-later
@@ -55,5 +55,8 @@ appstreamcli validate --no-net %{buildroot}%{_metainfodir}/io.github.UntoastedTo
 %{_mandir}/man1/call-duckerctl.1*
 
 %changelog
+* Fri Aug 14 2026 UntoastedToast <45534729+UntoastedToast@users.noreply.github.com> - 0.1.1-1
+- First release built for Debian, Ubuntu, and Arch alongside Fedora
+
 * Fri Aug 14 2026 UntoastedToast <45534729+UntoastedToast@users.noreply.github.com> - 0.1.0-1
 - Initial release
