@@ -28,6 +28,17 @@ test('application-registry', registry_test,
 test('daemon-dbus', daemon_dbus_test,
   env: ['GSETTINGS_SCHEMA_DIR=' + meson.project_build_root() / 'data',
         'GSETTINGS_BACKEND=memory'])
+startup_test = executable('test-daemon-startup', 'test-daemon-startup.c', dependencies: gio)
+daemon_session = find_program('dbus-run-session', required: integration_tests)
+if daemon_session.found()
+  test('daemon-startup', daemon_session,
+    args: ['--', startup_test.full_path(), daemon_executable.full_path()],
+    env: ['GSETTINGS_SCHEMA_DIR=' + meson.project_build_root() / 'data',
+          'GSETTINGS_BACKEND=memory',
+          'XDG_STATE_HOME=' + meson.project_build_root() / 'test-state'],
+    timeout: 30)
+endif
+
 pulseaudio_program = find_program('pulseaudio', required: integration_tests)
 if pulseaudio_program.found()
   private_pulse = find_program('test-private-pulse.sh')

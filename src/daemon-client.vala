@@ -43,9 +43,13 @@ public class DaemonClient : Object {
         return proxy.get_cached_property (name);
     }
 
+    /* The daemon can own its bus name for a moment before or after its object
+       is exported, so a missing object is a restart, not a broken contract. */
     public static bool is_transient_error (Error error) {
         return error.message.contains ("ServiceUnknown") ||
             error.message.contains ("NameHasNoOwner") ||
-            error.message.contains ("not activatable");
+            error.message.contains ("not activatable") ||
+            error.message.contains ("UnknownMethod") ||
+            error.message.contains ("Object does not exist at path");
     }
 }

@@ -471,6 +471,7 @@ private_server_backend_contract (void)
   fixture.backend = cd_pulse_backend_new ();
   g_signal_connect (fixture.backend, "changed", G_CALLBACK (backend_changed), &fixture);
   g_signal_connect (fixture.backend, "failed", G_CALLBACK (backend_failure), &fixture);
+  cd_pulse_backend_start (fixture.backend);
   fixture.minimum_changes = 1;
   wait_until (&fixture, backend_empty);
 

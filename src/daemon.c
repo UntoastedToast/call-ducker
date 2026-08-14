@@ -13,6 +13,7 @@ typedef struct
   GMainLoop *loop;
   CdDaemon *daemon;
   CdAudioBackend *backend;
+  GDBusConnection *connection;
   GCancellable *shutdown_cancellable;
   guint owner;
   guint sigterm;
@@ -60,6 +61,13 @@ begin_shutdown (Runner *runner)
   if (runner->stopping)
     return;
   runner->stopping = TRUE;
+  /* Release the name before unexporting. A client must see the service go
+   * away instead of an owned name whose object path no longer answers. */
+  if (runner->owner != 0)
+    {
+      g_bus_unown_name (runner->owner);
+      runner->owner = 0;
+    }
   if (runner->daemon == NULL)
     {
       g_main_loop_quit (runner->loop);
@@ -75,37 +83,24 @@ static gboolean
 stop_cb (gpointer data)
 {
   begin_shutdown (data);
-  return G_SOURCE_REMOVE;
+  /* Keep the source alive so that main() can still remove it by id. */
+  return G_SOURCE_CONTINUE;
 }
 
 static void
 name_acquired (GDBusConnection *connection, const char *name, gpointer data)
 {
   Runner *runner = data;
-  g_autoptr (GSettings) settings = NULL;
-  g_autoptr (GError) error = NULL;
-  CdPulseBackend *pulse;
 
+  (void)connection;
   (void)name;
   if (runner->stopping)
     return;
   runner->name_acquired = TRUE;
 
-  /* Creating the backend can connect to PulseAudio and loading the controller
-   * can touch persistent state. Do both only after exclusive name ownership. */
-  settings = g_settings_new ("io.github.UntoastedToast.CallDucker");
-  pulse = cd_pulse_backend_new ();
-  runner->backend = CD_AUDIO_BACKEND (pulse);
-  runner->daemon
-      = cd_daemon_new (settings, runner->backend, cd_state_store_new ("applications.json"),
-                       cd_state_store_new ("pulse-restore.json"));
-  if (!cd_daemon_export (runner->daemon, connection, OBJECT_PATH, &error))
-    {
-      g_printerr ("Could not export D-Bus service: %s\n", error->message);
-      runner->exit_status = 1;
-      begin_shutdown (runner);
-      return;
-    }
+  /* Connecting to PulseAudio is the first side effect of this process, so it
+   * waits for exclusive name ownership. */
+  cd_pulse_backend_start (CD_PULSE_BACKEND (runner->backend));
   cd_daemon_start (runner->daemon);
 }
 
@@ -114,13 +109,11 @@ name_lost (GDBusConnection *connection, const char *name, gpointer data)
 {
   Runner *runner = data;
 
+  (void)connection;
   (void)name;
   if (!runner->name_acquired)
     {
-      if (connection == NULL)
-        g_printerr ("Could not connect to the session bus\n");
-      else
-        g_printerr ("Another Call Ducker daemon instance is already running\n");
+      g_printerr ("Another Call Ducker daemon instance is already running\n");
       runner->exit_status = 1;
       begin_shutdown (runner);
       return;
@@ -133,6 +126,40 @@ name_lost (GDBusConnection *connection, const char *name, gpointer data)
   begin_shutdown (runner);
 }
 
+static gboolean
+setup (Runner *runner)
+{
+  g_autoptr (GSettings) settings = NULL;
+  g_autoptr (GError) error = NULL;
+
+  runner->connection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+  if (runner->connection == NULL)
+    {
+      g_printerr ("Could not connect to the session bus: %s\n", error->message);
+      return FALSE;
+    }
+
+  /* Only file reads happen here. A second instance loses the name below and
+   * exits without having connected to PulseAudio or written any state. */
+  settings = g_settings_new ("io.github.UntoastedToast.CallDucker");
+  runner->backend = CD_AUDIO_BACKEND (cd_pulse_backend_new ());
+  runner->daemon
+      = cd_daemon_new (settings, runner->backend, cd_state_store_new ("applications.json"),
+                       cd_state_store_new ("pulse-restore.json"));
+
+  /* Export before requesting the name. The bus announces a new owner as soon
+   * as the request is processed, and clients call the moment they see it. */
+  if (!cd_daemon_export (runner->daemon, runner->connection, OBJECT_PATH, &error))
+    {
+      g_printerr ("Could not export D-Bus service: %s\n", error->message);
+      return FALSE;
+    }
+  runner->owner = g_bus_own_name_on_connection (runner->connection, BUS_NAME,
+                                                G_BUS_NAME_OWNER_FLAGS_DO_NOT_QUEUE, name_acquired,
+                                                name_lost, runner, NULL);
+  return TRUE;
+}
+
 int
 main (void)
 {
@@ -142,9 +169,10 @@ main (void)
   runner.loop = g_main_loop_new (NULL, FALSE);
   runner.sigterm = g_unix_signal_add (SIGTERM, stop_cb, &runner);
   runner.sigint = g_unix_signal_add (SIGINT, stop_cb, &runner);
-  runner.owner = g_bus_own_name (G_BUS_TYPE_SESSION, BUS_NAME, G_BUS_NAME_OWNER_FLAGS_DO_NOT_QUEUE,
-                                 NULL, name_acquired, name_lost, &runner, NULL);
-  g_main_loop_run (runner.loop);
+  if (!setup (&runner))
+    runner.exit_status = 1;
+  else
+    g_main_loop_run (runner.loop);
 
   if (runner.shutdown_guard != 0)
     g_source_remove (runner.shutdown_guard);
@@ -157,6 +185,7 @@ main (void)
   cd_daemon_free (runner.daemon);
   g_clear_object (&runner.shutdown_cancellable);
   g_clear_object (&runner.backend);
+  g_clear_object (&runner.connection);
   g_main_loop_unref (runner.loop);
   return runner.exit_status;
 }

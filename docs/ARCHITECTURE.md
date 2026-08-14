@@ -66,9 +66,12 @@ journal and volume operations complete. Disable, CancelPreview, Restore, and shu
 immediate restore. D-Bus methods reply after their resolvable controller work and journal update;
 partial Preview failure rolls back already changed streams.
 
-The process requests its session-bus name with `DO_NOT_QUEUE`. It creates PulseAudio, controller,
-and journal state only from the name-acquired callback, so a second instance exits without audio or
-filesystem side effects. Losing an acquired name follows the asynchronous restore path with a
+The process exports its object before it requests its session-bus name with `DO_NOT_QUEUE`, because
+the bus announces a new owner before the name-acquired callback runs and clients call as soon as they
+see it. It connects to PulseAudio only from that callback, and until then reads files without writing
+any, so a second instance exits without audio or filesystem side effects. Shutdown reverses the same
+order and releases the name before unexporting, so a client sees the service disappear instead of an
+owned name without an object. Losing an acquired name follows the asynchronous restore path with a
 five-second shutdown guard.
 
 ## Tests

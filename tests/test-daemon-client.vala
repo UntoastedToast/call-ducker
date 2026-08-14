@@ -73,9 +73,41 @@ private void client_tracks_service_lifecycle () {
     }
 }
 
+/* A daemon owns its bus name slightly before and after its object exists.
+   Calls in those windows must read as a restart, not as a broken contract. */
+private void missing_object_is_transient () {
+    var bus = new TestDBus (TestDBusFlags.NONE);
+    bus.up ();
+    try {
+        Subprocess helper = start_helper ();
+        var client = DaemonClient.connect_sync ();
+        assert (wait_until (() => client.is_connected ()));
+
+        var stray = new DBusProxy.for_bus_sync (BusType.SESSION, DBusProxyFlags.NONE, null,
+            DaemonClient.BUS_NAME, "/io/github/UntoastedToast/CallDucker/Absent",
+            DaemonClient.INTERFACE_NAME);
+        try {
+            stray.call_sync ("ListApplications", null, DBusCallFlags.NONE, -1, null);
+            Test.fail ();
+        } catch (Error error) {
+            assert (error.message.contains ("UnknownMethod"));
+            assert (DaemonClient.is_transient_error (error));
+        }
+
+        helper.force_exit ();
+        helper.wait ();
+    } catch (Error error) {
+        Test.message ("%s", error.message);
+        Test.fail ();
+    } finally {
+        bus.stop ();
+    }
+}
+
 int main (string[] args) {
     Test.init (ref args);
     helper_path = args[1];
     Test.add_func ("/daemon-client/lifecycle", client_tracks_service_lifecycle);
+    Test.add_func ("/daemon-client/missing-object", missing_object_is_transient);
     return Test.run ();
 }
